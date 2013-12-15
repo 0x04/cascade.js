@@ -27,38 +27,92 @@
   var _defaultOptions = {
     /**
      * Override values that are undefined?
-     * @type {boolean}
+     * flag: "ou"
+     * @type {Boolean}
      */
     overrideUndefined: false,
 
     /**
      * Don't touch the data type of target value
-     * @type {boolean}
+     * flag: "mdt"
+     * @type {Boolean}
      */
-    obtainDataType: true,
+    maintainDataType: true,
+
+    /**
+     * Evaluate strings
+     * flag: "ev"
+     * e.g. "$index"
+     * @type {Boolean}
+     */
+    evaluateVariables: true,
 
     /**
      * Replace variables in strings
+     * flag: "rv"
      * e.g. "index no #{$index}"
-     * @type {boolean}
+     * @type {Boolean}
      */
     replaceVariables: true,
 
     /**
      * Save the results of the function that get executed.
      * Warning: Can hard hit the performance!
-     * @type {boolean}
+     * flag: "sr"
+     * @type {Boolean}
      */
     storeResults: true,
 
     /**
      * Evaluate/convert variables string into their corresponding object.
+     * flag: "ea"
      * e.g. "$index" => 0
-     * @type {boolean}
+     * @type {Boolean}
      */
     evaluateArguments: true
   };
 
+  /**
+   * @private
+   * @type {Object}
+   */
+  var _flagToOption = {
+    ou  : 'overrideUndefined',
+    mdt : 'maintainDataType',
+    ev  : 'evaluateVariables',
+    rv  : 'replaceVariables',
+    ea  : 'evaluateArguments'
+  };
+
+  /**
+   * @const
+   * @type {RegExp}
+   */
+  var IS_DOT_STRING = /^([$_a-z][$\w]*(\.)?)+$/i;
+
+  /**
+   * @const
+   * @type {RegExp}
+   */
+  var IS_VAR_STRING = /^$[$\w]*$/i;
+
+  /**
+   * @const
+   * @type {RegExp}
+   */
+  var IS_VAR_REPLACEMENT = /\{$[$\w]*\}/i;
+
+  /**
+   * Checks if a value evaluable.
+   * @const
+   * @type RegExp
+   */
+  var IS_EVALUABLE = /Object|String/;
+
+  /**
+   * @private
+   * @type {Boolean}
+   */
   var _isDebug = true;
 
 
@@ -105,12 +159,20 @@
    * Returns the internal class name of the given object.
    * @private
    * @param {*} value
-   * @returns {string}
+   * @param {String} [compare]
+   * @returns {Boolean|String}
    */
-  function _is(value)
+  function _is(value, compare)
   {
-    var string = Object.prototype.toString.call(value);
-    return string.substring(8, string.length - 1);
+    var type = Object.prototype.toString.call(value);
+
+    // Extract the real data type e.g. "[object Object]"
+    // -----------------------------------------^^^^^^
+    type = type.substring(8, type.length - 1);
+
+    return (typeof compare == 'string')
+        ? (compare.split(/[^$\w]/).indexOf(type) > -1)
+        : type;
   }
 
   /**
@@ -160,21 +222,24 @@
     var result = object;
     var paths = Array.prototype.slice.call(arguments, 1);
 
-    for (var i = 0, l = paths.length; i < l; i++)
+    for (var index = 0, length = paths.length;
+         index < length;
+         index++)
     {
-      if (_is(paths[i]) == 'String' && paths[i].indexOf('.') > -1)
+      if (_is(paths[index]) == 'String'
+      && paths[index].indexOf('.') > -1)
       {
-        var tmp = [ i, 1 ].concat(paths[i].split(/\./));
+        var tmp = [ index, 1 ].concat(paths[index].split(/\./));
         Array.prototype.splice.apply(paths, tmp);
-        l = paths.length;
+        length = paths.length;
       }
 
-      if (_is(result[paths[i]]) == 'Undefined')
+      if (_is(result[paths[index]]) == 'Undefined')
       {
         result = undefined;
         break;
       }
-      else result = result[paths[i]];
+      else result = result[paths[index]];
     }
 
     return result;
@@ -184,31 +249,27 @@
    * Returns a array with some option-driven conditions. Its used to
    * determine if changes to a field is allowed or not.
    * @private
-   * @param {Object} $scope
-   * @param {String} key
-   * @param {*} value
-   * @param {*} [subject]
+   * @param scope
+   * @param operand
+   * @param args
+   * @param subject
    * @returns {Boolean}
    */
-  function _conditions($scope, key, value, subject)
+  function _conditions(scope, operand, args)
   {
-    subject = (subject || $scope.subject);
-
-    var target = _resolve(subject, key);
-
     var overrideUndefined = (
-        $scope.options.overrideUndefined
-        || _is(target) != 'Undefined'
-      );
+        scope.options.overrideUndefined
+            || _is(operand) != 'Undefined'
+        );
 
     var obtainDataType = (
-        (overrideUndefined && _is(target) == 'Undefined')
-        || (!$scope.options.obtainDataType
-          || _is(target) == _is(value)
-          || _is(target) == 'Function')
-      );
+        (overrideUndefined && _is(operand) == 'Undefined')
+            || (!scope.options.maintainDataType
+            || _is(operand) == _is(args)
+            || _is(operand) == 'Function')
+        );
 
-    return overrideUndefined && obtainDataType;
+    return (overrideUndefined && obtainDataType);
   }
 
 
@@ -219,28 +280,31 @@
   /**
    * Evaluates a string or replace variables in it.
    * @private
-   * @param {Object} $scope
+   * @param {Object} scope
    * @param {*} value
    * @returns {*}
    */
-  function _evaluateString($scope, value)
+  function _evaluateString(scope, value)
   {
     var result = value;
 
-    if (_is(value) == 'String' && $scope.options.replaceVariables)
+    if (_is(value) == 'String' && scope.options.replaceVariables)
     {
-      if (value in $scope.variables)
+      if (value in scope.variables)
       {
-        result = $scope.variables[value];
+        result = scope.variables[value];
       }
-      else for (var variable in $scope.variables)
+      else for (var variable in scope.variables)
       {
         // @TODO: RegExp escaping
         var regexp = new RegExp('{' + variable.replace('$', '\\$') + '}', 'g');
 
         if (regexp.test(result))
         {
-          result = result.replace(regexp, String($scope.variables[variable]));
+          result = result.replace(
+              regexp,
+              String(scope.variables[variable])
+          );
         }
       }
     }
@@ -251,32 +315,34 @@
   /**
    * Searches after evaluable strings in objects.
    * @private
-   * @param {Object} $scope
+   * @param {Object} scope
    * @param {*} value
    * @return {*}
    */
-  function _evaluateObject($scope, value)
+  function _evaluateObject(scope, value)
   {
-    var key, length;
+    var index, length;
 
     switch (_is(value))
     {
       case 'Array':
-        for (key = 0, length = value.length; key < length; key++)
+        for (index = 0, length = value.length;
+             index < length;
+             index++)
         {
-          if (_isEvaluable(value[key]))
+          if (IS_EVALUABLE.test(_is(value[index])))
           {
-            value[key] = _evaluateObjectValues($scope, value[key]);
+            value[index] = _evaluateObjectValue(scope, value[index]);
           }
         }
         break;
 
       case 'Object':
-        for (key in value)
+        for (index in value)
         {
-          if (_isEvaluable(value[key]))
+          if (IS_EVALUABLE.test(_is(value[index])))
           {
-            value[key] = _evaluateObjectValues($scope, value[key]);
+            value[index] = _evaluateObjectValue(scope, value[index]);
           }
         }
         break;
@@ -286,35 +352,24 @@
   }
 
   /**
-   * Checks if a value evaluable.
-   * @private
-   * @param {*} value
-   * @returns {Boolean}
-   */
-  function _isEvaluable(value)
-  {
-    return (/Object|String/.test(_is(value)));
-  }
-
-  /**
    * Evaluation recursion helper function.
    * @private
-   * @param {Object} $scope
+   * @param {Object} scope
    * @param {*} value
    * @return {*}
    */
-  function _evaluateObjectValues($scope, value)
+  function _evaluateObjectValue(scope, value)
   {
     var result;
 
     switch (_is(value))
     {
       case 'Object':
-        result = _evaluateObject($scope, value);
+        result = _evaluateObject(scope, value);
         break;
 
       case 'String':
-        result = _evaluateString($scope, value);
+        result = _evaluateString(scope, value);
         break;
     }
 
@@ -323,218 +378,282 @@
 
 
   //----------------------------------------------------------------------------
-  // @part Handler
+  // @part Processing
   //----------------------------------------------------------------------------
 
   /**
-   * Handles a function, which means to execute it with the given `args`
-   * in the scope `scope`.
+   * The main chain processing function.
+   *
+   * Possible chain calls:
+   *
+   * * (operand, arg, ...)
+   * * (operand, [ arg, ...], ...)
+   * * ([ operand, arg, ...], ...)
+   * * ([ operand, [ arg, ...] ], ...)
+   * * ({ operand: arg }, ...)
+   * * ({ operand: [ arg, ...] }, ...)
+   *
    * @private
-   * @param {Object} $scope
-   * @param {Function} fn
-   * @param {Array} args
-   * @param {*} [scope=null]
+   * @param {Object} scope Chain scope values
+   * @param {Array} args Chain arguments
+   * @param {Array|Function|Object|String} args.operand
+   * @param {... *} [args.args]
+   * @return {*}
    */
-  function _handleFunction($scope, fn, args, scope)
+  function _process(scope, args)
   {
-    if (_is(scope) == 'Undefined')
+    var result = null;
+
+    processing: for (var index = 0, length = args.length;
+         index < length;
+         index++)
     {
-      scope = null;
-    }
+      var arg = args[index];
 
-    var result = fn.apply(scope, args);
-
-    if ($scope.options.storeResults)
-    {
-      $scope.variables.$results.push(result);
-      $scope.variables.$result = result;
-    }
-  }
-
-  function _handleArray($scope, args)
-  {
-
-  }
-
-  /**
-   * Handles a object. The internal handling is chosen by the structure of
-   * `args`.
-   * @private
-   * @param {Object} $scope
-   * @param {Array} args
-   */
-  function _handleObject($scope, args)
-  {
-    var operand = args[0];
-
-    switch (_is(operand))
-    {
-      case 'Function':
-        _handleFunction(
-          $scope,
-          args.shift(),
-          args,
-          $scope.subject
-        );
-        break;
-
-      case 'Object':
-        _handleObjectObject($scope, args);
-        break;
-
-      case 'String':
-        _handleObjectString($scope, args);
-        break;
-    }
-  }
-
-  /**
-   * _handleValue
-   * @private
-   * @param {Object} $scope
-   * @param {String} key
-   * @param {*} value
-   * @param {*} [subject] Temporarily overrides the subject of `$scope`
-   */
-  function _handleValue($scope, key, value, subject)
-  {
-    if (_is(value) == 'Object' && _is(value[key]) != 'Undefined')
-    {
-      value = value[key];
-    }
-
-    // Check option-conditions
-    if (_conditions($scope, key, value, subject))
-    {
-      var targetPath = key,
-        parentPath = null,
-        parent = (subject || $scope.subject);
-
-      if (key.indexOf('.') > 0)
+      // First of all: Determine the operand!
+      switch (_is(arg))
       {
-        // Key is dot string, so resolve the corresponding object.
-        targetPath = key.substr(key.lastIndexOf('.') + 1);
-        parentPath = key.substr(0, key.lastIndexOf('.'));
-        parent = _resolve(parent, parentPath);
-      }
+        case 'Array':
+          // Arrays
+          result = _processArray(scope, arg);
+          break;
 
-      switch (_is(parent[targetPath]))
-      {
-        case 'Function':
-          _handleFunction($scope, parent[targetPath], value, parent);
+        case 'Object':
+          // Plain object
+          result = _processObject(scope, arg);
           break;
 
         default:
-          parent[targetPath] = value;
+          // All non-plain objects like
+          // `Date`, `Node`, `Document` etc.
+          if (typeof arg == 'object')
+          {
+            result = _processObject(scope, arg);
+          }
+          // The rest (no referencing)
+          else
+          {
+            result = _processArray(scope, args);
+            break processing;
+          }
           break;
       }
     }
+
+    return result;
   }
 
   /**
-   * Sub handler for `_handleObject`, as the name suggests it is responsible
-   * for handling sub objects.
+   * Array processing:
+   *
+   * * case #1: ([ operand, arg, ... ], ...)
+   * * case #2: ([ operand, [ arg, ... ], ... ], ...)
    *
    * @private
-   * @param {Object} $scope
-   * @param {Array} args
+   * @param {Object} scope
+   * @param {Array} arg
+   * @return
    */
-  function _handleObjectObject($scope, args)
+  function _processArray(scope, arg)
   {
-    for (var index = 0, length = args.length; index < length; index++)
+    var index, length, operand, args;
+
+    // case #2
+    if (arg.length > 2 && _is(arg[1], 'Array'))
     {
-      var value = args[index];
+      var result = [];
 
-      for (var key in value)
+      // Following pair wise format is awaited:
+      // [ operand:*, args:Array, operand:*, args:Array, ... ]
+      if (arg.length % 2 == 0)
       {
-        switch (_is(value[key]))
+        for (index = 0, length = arg.length;
+             index < length;
+             index += 2)
         {
-          case 'String':
-            args.unshift(key);
-            _handleObjectString($scope, args);
-            break;
+          operand = arg[index];
+          args = (_is(arg[index + 1], 'Array'))
+              ? arg[index +1]
+              : [ arg[index +1] ];
 
-          case 'Array':
-            // @TODO: Cleanup. Seems a bit messy.
-            if (_is(value[key][0]) == 'String')
-            {
-              var target = _resolve($scope.subject, key);
-              _handleObjectString($scope, value[key], target);
-            }
-            else _handleValue($scope, key, value);
-            break;
-
-          default:
-            _handleValue($scope, key, value);
-            break;
+          result.push(_processOperand(scope, operand, args));
         }
+
+        return result;
       }
+    }
+
+    // case #1
+    operand = arg[0];
+
+    args = [];
+
+    for (index = 1, length = arg.length;
+         index < length;
+         index++)
+    {
+      args = args.concat(arg[index]);
+    }
+
+    return _processOperand(scope, operand, args);
+  }
+
+  /**
+   * Object processing:
+   *
+   * * case #1: ({ operand: arg, ... }, ...)
+   * * case #2: ({ operand: [ arg, ... ] }, ...)
+   *
+   * @private
+   * @param {Object} scope
+   * @param {Object} arg
+   * @return
+   */
+  function _processObject(scope, arg)
+  {
+    var name, operand, args;
+
+    for (name in arg)
+    {
+      if (arg.hasOwnProperty(name))
+      {
+        operand = name;
+        args = (_is(arg[name], 'Array'))
+            ? arg[name]
+            : [ arg[name] ];
+
+        _processOperand(scope, operand, args);
+      }
+      else debugger;
     }
   }
 
   /**
-   * Sub handler for `_handleObject`, as the name suggests it is responsible
-   * for handling strings in sub objects.
+   * Default processing:
+   *
+   * * (operand, arg, ...)
+   * * (operand, [ arg, ...], ...)
+   *
    * @private
-   * @param {Object} $scope
+   * @param {Object} scope
+   * @param {*} operand
    * @param {Array} args
-   * @param {*} [subject]
+   * @param {*} [subject=null]
+   * @return {*}
    */
-  function _handleObjectString($scope, args, subject)
+  function _processOperand(scope, operand, args, subject)
   {
-    subject = (subject || $scope.subject);
+    subject = (!_is(subject, 'Undefined'))
+        ? subject
+        : scope.subject;
 
-    var pathStr = args.shift();
-    var target = _resolve(subject, pathStr);
+    var errorMsg = null;
 
-    switch (_is(target))
+    try
     {
-      case 'Function':
-        // Simply call function
-        _handleFunction($scope, target, args, subject);
-        break;
-
-      default:
-        switch (_is(args[0]))
+      if (_is(operand, 'String'))
+      {
+        // Resolve dot string of subject.
+        if (IS_DOT_STRING.test(operand))
         {
-          // `args = [ { "method": function(target:Object, [... args:*]){} } ]`
-          case 'Function':
-            // This call is a bit tricky. We remove the first
-            // arguments due shift, and merge the remaining
-            // arguments to an array containing the target.
-            // So we don't need to change the scope.
-            _handleFunction(
-              $scope,
-              args.shift(),
-              [ target ].concat(args)
-            );
-            break;
+          var path = operand.split('.');
 
-          default:
-            // E.g. `args = [ { "property": 1 } ]`
-            if (args.length == 1)
-            {
-              // Single argument
-              _handleValue($scope, pathStr, args[0]);
-            }
-            // E.g. `args = [ { "property": [ "fn", 1, 2, 3 ] } ];`
-            else
-            {
-              // Multiple arguments
-              _handleValue(
-                $scope,
-                args.shift(),
-                args,
-                target
-              );
-            }
-            break;
+          if (path.length > 1)
+          {
+            subject =_resolve(subject, path.slice(1));
+            operand = path.slice(-1).pop();
+          }
         }
-        break;
+
+        // Evaluate/replace variables
+        if (_is(operand, 'String'))
+        {
+          operand = _evaluateString(scope, operand);
+        }
+      }
+
+      // Error handling
+      if (_is(operand, 'Undefined|Null|NaN'))
+      {
+        errorMsg = 'Operand was `%s`.'
+            .replace('%s', _is(operand));
+      }
+    }
+    catch (e)
+    {
+      errorMsg = 'Error while processing value "%s".'
+          .replace('%s', String(operand));
     }
 
+    if (!!errorMsg && errorMsg.length > 0)
+    {
+      throw new Error(errorMsg);
+    }
+
+    // After resolving or evaluating the operand string,
+    // the received object has to been re-handled.
+    return _processValue(scope, operand, args, subject);
   }
 
+  /**
+   * @private
+   * @param {Object} scope
+   * @param {String} operand
+   * @param {Array} args
+   * @param {*} [subject]
+   * @returns {*}
+   */
+  function _processValue(scope, operand, args, subject)
+  {
+    var result = null;
+
+    subject = (_is(subject, 'Undefined'))
+          ? scope.subject
+          : subject;
+
+    {
+      var target = subject[operand];
+
+      if (scope.options.evaluateArguments)
+      {
+        _evaluateObject(scope, args);
+      }
+
+      switch (_is(target))
+      {
+        case 'Function':
+          result = target.apply(subject, args);
+
+          if (scope.options.storeResults)
+          {
+            scope.variables.$result = result;
+            scope.variables.$results.push(result);
+          }
+          break;
+
+        default:
+          if (_is(target, 'isArray'))
+          {
+            if (_conditions(scope, operand, args))
+            {
+              result = args;
+            }
+          }
+          // @TODO: How to handle multiple items?
+          else if (_conditions(scope, target, args[0]))
+          {
+            result = args[0];
+          }
+          else result = args[0];
+
+          subject[operand] = result;
+          break;
+      }
+
+    }
+
+    return result;
+  }
 
   //----------------------------------------------------------------------------
   // @part public
@@ -545,7 +664,7 @@
    * @param {Function|Object} subject
    * @param {Object} [options]
    * @param {Boolean} [options.overrideUndefined]
-   * @param {Boolean} [options.obtainDataType]
+   * @param {Boolean} [options.maintainDataType]
    * @param {Boolean} [options.replaceVariables]
    * @param {Function} [previous]
    * @returns {Function}
@@ -564,8 +683,8 @@
       if (_defaultOptions[key] != options[key])
       {
         options[key] = (_is(options[key]) != 'Undefined')
-          ? options[key]
-          : _defaultOptions[key];
+            ? options[key]
+            : _defaultOptions[key];
       }
     }
 
@@ -573,7 +692,7 @@
      * Contains all variables that are scope dependent.
      * @type {object}
      */
-    var $scope = {
+    var scope = {
       previous  : previous,
       subject   : subject,
       options   : options,
@@ -584,12 +703,14 @@
       }
     };
     // Self reference
-    $scope.variables.$scope = $scope;
+    scope.variables.scope = scope;
 
     /**
      * @type {Function}
      */
-    var currentChain = function() { console.info('[currentChain/dummy]'); };
+    var currentChain = function() {
+      throw new Error('Dummy function!');
+    };
 
     /**
      * The cascade chaining function.
@@ -598,41 +719,15 @@
      */
     function cascadeChain(args)
     {
-      currentChain = (function(originalArgs) {
+      currentChain = (/* @return {Function} */ function(args) {
         // This inner wrap is done for the `.times` method
         return function()
         {
-          // Copy original arguments. They will be modified.
-          var args = originalArgs.concat();
-
-          if (options.evaluateArguments)
-          {
-            _evaluateObject($scope, args);
-          }
-
-          switch (_is(subject))
-          {
-            case 'Function':
-              _handleFunction($scope, subject, args);
-              break;
-
-            case 'Array':
-              _handleArray($scope, args);
-              break;
-
-            case 'Object':
-              _handleObject($scope, args);
-              break;
-
-            default:
-              throw new Error('@TODO: Implement non-reference values!');
-              // _handleValue
-              break;
-          }
-
-          $scope.variables.$index++;
+          var result = _process(scope, args);
+          scope.variables.$index++;
+          return result;
         };
-      // Convert arguments into an array
+        // Convert arguments into an array
       })(Array.prototype.slice.call(arguments));
 
       // Instantly call first time
@@ -644,17 +739,17 @@
     /**
      * Enters the given property and return a new `cascadeChain`.
      * @param {String} property
-     * @returns {Function}
+     * @returns {cascade}
      */
     cascadeChain.enter = function(property)
     {
-      if (/Undefined|Null/.test(_is($scope.subject[property])))
+      if (/Undefined|Null/.test(_is(scope.subject[property])))
       {
         throw new Error('Property `%s` does not exist on subject.'
-          .replace('%s', property));
+            .replace('%s', property));
       }
 
-      return cascade($scope.subject[property], options, cascadeChain);
+      return cascade(scope.subject[property], options, cascadeChain);
     };
 
     /**
@@ -663,7 +758,7 @@
      */
     cascadeChain.exit = function()
     {
-      return ($scope.previous || this);
+      return (scope.previous || this);
     };
 
     /**
@@ -678,7 +773,7 @@
     /**
      * Repeats the execution of the current chain several times.
      * @param times
-     * @returns {Function}
+     * @returns {cascadeChain}
      */
     cascadeChain.times = function(times)
     {
@@ -712,14 +807,17 @@
       _isEmpty              : _isEmpty,
       _resolve              : _resolve,
       _conditions           : _conditions,
+      // Evaluation
       _evaluateString       : _evaluateString,
       _evaluateObject       : _evaluateObject,
-      _evaluateObjectValues : _evaluateObjectValues,
-      _handleFunction       : _handleFunction,
-      _handleValue          : _handleValue,
-      _handleObject         : _handleObject,
-      _handleObjectObject   : _handleObjectObject,
-      _handleObjectString   : _handleObjectString
+      _evaluateObjectValues : _evaluateObjectValue,
+      // Processing
+      _process              : _process,
+      _processArray         : _processArray,
+      _processObject        : _processObject,
+      _processOperand       : _processOperand,
+      _processValue         : _processValue,
+      _processConditions    : _conditions
     };
   }
 
