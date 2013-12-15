@@ -1,0 +1,11 @@
+server: http://localhost:9876
+
+load:
+  - ../vendor/jasmine/lib/jasmine-core/jasmine.js
+  - ../vendor/jasmine-jstd-adapter/src/JasmineAdapter.js
+  - ../src/cascade.js
+
+test:
+  - test_cascade.js
+
+timeout: 90
