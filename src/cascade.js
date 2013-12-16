@@ -213,7 +213,9 @@
   function _resolve(object, path)
   {
     var result = object;
-    var paths = Array.prototype.slice.call(arguments, 1);
+    var paths = (!_is(path, 'Array'))
+      ? Array.prototype.slice.call(arguments, 1)
+      : path;
 
     for (var index = 0, length = paths.length;
          index < length;
@@ -532,7 +534,7 @@
        && IS_DOT_STRING.test(operand))
       {
         var path = operand.split('.');
-        subject =_resolve(subject, path.slice(1));
+        subject =_resolve(subject, path.slice(0, -1));
         operand = path.slice(-1).pop();
       }
 
