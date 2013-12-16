@@ -2,7 +2,7 @@
  * cascade.js
  * @author     Oliver Kühn
  * @website    http://0x04.de
- * @version    0.5.0
+ * @version    0.6.5
  * @license    MIT
  */
 
