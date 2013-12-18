@@ -705,22 +705,24 @@
     /**
      * Enters the given property and return a new `cascadeChain`.
      * @param {String} property
-     * @returns {cascade}
+     * @returns {cascadeChain}
      */
     cascadeChain.enter = function(property)
     {
-      if (/Undefined|Null/.test(_is(scope.subject[property])))
+        var target = _resolve(scope.subject, property);
+
+      if (/Undefined|Null/.test(_is(target)))
       {
         throw new Error('Property `%s` does not exist on subject.'
             .replace('%s', property));
       }
 
-      return cascade(scope.subject[property], options, cascadeChain);
+      return cascade(target, options, cascadeChain);
     };
 
     /**
      * Exits the current and return the previous `cascadeChain`.
-     * @returns {Function}
+     * @returns {cascadeChain}
      */
     cascadeChain.exit = function()
     {
