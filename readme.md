@@ -5,6 +5,10 @@
 [²](https://www.dartlang.org/docs/spec/latest/dart-language-specification.html#h.30hsq2v14fk2)
 of the [dart programming language](https://www.dartlang.org).*
 
+This readme is just a modified copy of the excellent blog post of Gilad Bracha.
+For more info see @Gilad_Bracha. I had to die in shame that I forget this credit
+at my first commit. Thank you Gilad for being AWESOME.
+
 ---
 
 ## Introduction
