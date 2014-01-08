@@ -1,9 +1,14 @@
 /**
  * cascade.js
- * @author     Oliver Kühn
- * @website    http://0x04.de
- * @version    0.6.5
- * @license    MIT
+ * ==========
+ * A JavaScript chaining library inspired by the cascade
+ * operator of the dart programming language.
+ *
+ * @creator Oliver Kühn
+ * @website http://github.com/0x04/cascade.js
+ * @created 2013-11-14
+ * @version 0.6.6
+ * @license MIT
  */
 
 (function()
@@ -686,7 +691,7 @@
     function cascadeChain(args)
     {
       currentChain = (/* @return {Function} */ function(args) {
-        // This inner wrap is done for the `.times` method
+        // This inner wrap is done for the `.repeat` method
         return function()
         {
           var result = _process(scope, args);
@@ -743,7 +748,7 @@
      * @param times
      * @returns {cascadeChain}
      */
-    cascadeChain.times = function(times)
+    cascadeChain.repeat = function(times)
     {
       for (var i = times; i > 0; i--)
       {
