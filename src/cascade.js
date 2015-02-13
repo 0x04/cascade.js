@@ -2,7 +2,7 @@
  * cascade.js
  * @author     Oliver Kühn
  * @website    http://0x04.de
- * @version    0.6.5
+ * @version    0.9.0
  * @license    MIT
  */
 
@@ -27,21 +27,18 @@
   var _defaultOptions = {
     /**
      * Override values that are undefined?
-     * flag: "ou"
      * @type {Boolean}
      */
     overrideUndefined: false,
 
     /**
      * Don't touch the data type of target value
-     * flag: "mdt"
      * @type {Boolean}
      */
     maintainDataType: true,
 
     /**
      * Evaluate strings
-     * flag: "ev"
      * e.g. "$index"
      * @type {Boolean}
      */
@@ -49,7 +46,6 @@
 
     /**
      * Replace variables in strings
-     * flag: "rv"
      * e.g. "index no #{$index}"
      * @type {Boolean}
      */
@@ -58,30 +54,16 @@
     /**
      * Save the results of the function that get executed.
      * Warning: Can hard hit the performance!
-     * flag: "sr"
      * @type {Boolean}
      */
     storeResults: true,
 
     /**
      * Evaluate/convert variables string into their corresponding object.
-     * flag: "ea"
      * e.g. "$index" => 0
      * @type {Boolean}
      */
     evaluateArguments: true
-  };
-
-  /**
-   * @private
-   * @type {Object}
-   */
-  var _flagToOption = {
-    ou  : 'overrideUndefined',
-    mdt : 'maintainDataType',
-    ev  : 'evaluateVariables',
-    rv  : 'replaceVariables',
-    ea  : 'evaluateArguments'
   };
 
   /**
@@ -241,30 +223,62 @@
   }
 
   /**
+   * Referring to the table here:
+   * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/regexp
+   * these characters should be escaped
+   * \ ^ $ * + ? . ( ) | { } [ ]
+   * These characters only have special meaning inside of brackets
+   * they do not need to be escaped, but they MAY be escaped
+   * without any adverse effects (to the best of my knowledge and casual testing)
+   * : ! , =
+   * my test "~!@#$%^&*(){}[]`/=?+\|-_;:'\",<.>".match(/[\#]/g)
+   *
+   * @see http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
+   * @type {function}
+   */
+  var _escapeRegExp = (function () {
+
+    var specials = [
+      // order matters for these
+      "-", "[", "]",
+      // order doesn't matter for any of these
+      "/" , "{" , "}" , "(" , ")" , "*" , "+" , "?" , "." , "\\" , "^" , "$" , "|"
+    ];
+
+    // I choose to escape every character with '\'
+    // even though only some strictly require it when inside of []
+    var regex = new RegExp('[' + specials.join('\\') + ']', 'g');
+
+    return function (str) {
+      return str.replace(regex, "\\$&");
+    };
+
+  }());
+
+  /**
    * Returns a array with some option-driven conditions. Its used to
    * determine if changes to a field is allowed or not.
    * @private
    * @param scope
    * @param operand
    * @param args
-   * @param subject
    * @returns {Boolean}
    */
   function _conditions(scope, operand, args)
   {
     var overrideUndefined = (
-        scope.options.overrideUndefined
-            || _is(operand) != 'Undefined'
-        );
+      scope.options.overrideUndefined
+        || _is(operand) != 'Undefined'
+      );
 
-    var obtainDataType = (
+    var maintainDataType = (
         (overrideUndefined && _is(operand) == 'Undefined')
-            || (!scope.options.maintainDataType
-            || _is(operand) == _is(args)
-            || _is(operand) == 'Function')
-        );
+        || (!scope.options.maintainDataType
+        || _is(operand) == _is(args)
+        || _is(operand) == 'Function')
+      );
 
-    return (overrideUndefined && obtainDataType);
+    return (overrideUndefined && maintainDataType);
   }
 
 
@@ -302,8 +316,7 @@
     {
       for (var variable in scope.variables)
       {
-        // @TODO: RegExp escaping
-        var regexp = new RegExp('{' + variable.replace('$', '\\$') + '}', 'g');
+        var regexp = new RegExp('{' + _escapeRegExp(variable) + '}', 'g');
 
         if (regexp.test(result))
         {
@@ -663,9 +676,9 @@
       subject   : subject,
       options   : options,
       variables : {
-        $index   : 0,
-        $results : [],
-        $result  : undefined
+        $index    : 0,
+        $results  : [],
+        $result   : undefined
       }
     };
     // Self reference
@@ -705,7 +718,7 @@
     /**
      * Enters the given property and return a new `cascadeChain`.
      * @param {String} property
-     * @returns {cascadeChain}
+     * @returns {Function} Cascade chain
      */
     cascadeChain.enter = function(property)
     {

@@ -193,7 +193,7 @@ cascade(target)
 ```javascript
 var target = { a: 'foobar', b: 'hello world' };
 cascade(target)
-  ('a', 'foobar #{$index}');
+  ('a', 'foobar #{$index}')
   ('b', 'hello #{$index} world');
 
 // #0: target.a == 'foobar #0'
