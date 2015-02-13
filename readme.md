@@ -1,15 +1,12 @@
 # cascade.js
 
-*A simple JavaScript library deeply inspired by the [cascade operator]
-(http://news.dartlang.org/2012/02/method-cascades-in-dart-posted-by-gilad.html)
-[²](https://www.dartlang.org/docs/spec/latest/dart-language-specification.html#h.30hsq2v14fk2)
+*A JavaScript library deeply inspired by the [cascade operator](https://www.dartlang.org/docs/spec/latest/dart-language-specification.html#h.30hsq2v14fk2)
 of the [dart programming language](https://www.dartlang.org).*
 
-This readme is just a modified copy of the excellent blog post of Gilad Bracha.
-For more info see @Gilad_Bracha. I had to die in shame that I forget this credit
-at my first commit. Thank you Gilad for being AWESOME.
+This readme is a strongly modified copy of the excellent blog post of
+[Gilad Bracha](http://news.dartlang.org/2012/02/method-cascades-in-dart-posted-by-gilad.html).
 
----
+--------------------------------------------------------------------------------
 
 ## Introduction
 
@@ -83,8 +80,8 @@ cascade(ul)
     cascade(document.createElement('li'))
       ({ textContent: 'foobar {$index}' }))
       .release()
-  // Execute the previous chain 2 more times
-  .times(2);
+  // Repeat execution of previous chain 2 more times
+  .repeat(2);
 ```
 Here, the `cascade.js` cascaded method invocation operation. The `cascade(…)(…)`
 invokes a method (or setter or getter) but discards the result, and returns the
@@ -130,7 +127,7 @@ cascade(<target: *>, [ <options: Object> ])
   [ .enter(<operand: *>) ]
   [ .exit() ]
   [ .release() ]
-  [ .times(<num: Number>) ]
+  [ .repeat(<num: Number>) ]
 ```
 
 
@@ -200,13 +197,17 @@ cascade(target)
 // #1: target.b == 'hello #1 world'
 ```
 
-### Execution of the current chain multiple times
+### Repeat the execution of the current chain several times
 ```javascript
 var target = { value: 0, fn: function() { this.value++; } };
 cascade(target)
-  ('fn').times(99)
+  ('fn').repeat(99)
   .release();
 
 // #0: target.value == 100
 // >> { value: 100, fn: ... }
 ```
+
+--------------------------------------------------------------------------------
+
+*EOT. End of transmission*

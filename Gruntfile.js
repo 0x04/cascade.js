@@ -10,7 +10,7 @@ module.exports = function(grunt)
           + ' * cascade.js'
           + ' * @creator Oliver Kühn\n'
           + ' * @website http://0x04.de\n'
-          + ' * @version 0.6.5\n'
+          + ' * @version 0.6.6\n'
           + ' * @license MIT\n'
           + ' */\n'
       },
