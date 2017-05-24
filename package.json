@@ -1,7 +1,7 @@
 {
   "name": "cascade.js",
-  "version": "0.6.6",
-  "description": "A simple chaining library inspired by the cascade operator in dart.",
+  "version": "1.0.0",
+  "description": "A JavaScript chaining library inspired by the cascade operator of the dart programming language.",
   "main": "src/cascade.js",
   "directories": {
     "test": "test"
@@ -17,7 +17,11 @@
     "cascade",
     "javascript"
   ],
-  "author": "Oliver Kühn",
+  "author": {
+    "name": "Oliver Kühn",
+    "email": "ok@0x04.de",
+    "homepage": "http://0x04.de"
+  }
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/0x04/cascade.js/issues"

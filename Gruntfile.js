@@ -1,16 +1,16 @@
 module.exports = function(grunt)
 {
-
+  var pkg = grunt.file.readJSON('package.json');
   // Project configuration.
   grunt.initConfig({
-    pkg: grunt.file.readJSON('package.json'),
+    pkg: pkg,
     uglify: {
       options: {
         banner: '/**\n'
           + ' * cascade.js'
           + ' * @creator Oliver Kühn\n'
           + ' * @website http://0x04.de\n'
-          + ' * @version 0.6.6\n'
+          + ' * @version ' + pkg.version + '\n'
           + ' * @license MIT\n'
           + ' */\n'
       },

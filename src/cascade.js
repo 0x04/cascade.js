@@ -1,9 +1,8 @@
 /**
- * cascade.js
- * @author     Oliver Kühn
- * @website    http://0x04.de
- * @version    0.9.0
- * @license    MIT
+ * @file src/cascade.js
+ * @description A JavaScript chaining library inspired by the cascade operator of the dart programming language.
+ * @author Oliver Kühn <ok@0x04.de>
+ * @license MIT
  */
 
 (function()
