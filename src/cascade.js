@@ -120,7 +120,7 @@
     {
       args = Array.prototype.slice.apply(arguments);
 
-      if (_is(methodName) == 'String')
+      if (_is(methodName) === 'String')
       {
         args[0] = '[cascade.js/%s]'.replace('%s', methodName);
       }
@@ -145,7 +145,7 @@
     // -----------------------------------------^^^^^^
     type = type.substring(8, type.length - 1);
 
-    return (typeof compare == 'string')
+    return (typeof compare === 'string')
         ? (compare.split(/[^$\w]/).indexOf(type) > -1)
         : type;
   }
@@ -171,7 +171,7 @@
         break;
 
       case 'Array':
-        result = (object.length == 0);
+        result = (object.length === 0);
         break;
 
       default:
@@ -203,15 +203,14 @@
          index < length;
          index++)
     {
-      if (_is(paths[index]) == 'String'
-      && paths[index].indexOf('.') > -1)
+      if (_is(paths[index], 'String') && paths[index].indexOf('.') > -1)
       {
         var tmp = [ index, 1 ].concat(paths[index].split(/\./));
         Array.prototype.splice.apply(paths, tmp);
         length = paths.length;
       }
 
-      if (_is(result[paths[index]]) == 'Undefined')
+      if (_is(result[paths[index]], 'Undefined'))
       {
         result = undefined;
         break;
@@ -268,14 +267,14 @@
   {
     var overrideUndefined = (
       scope.options.overrideUndefined
-        || _is(operand) != 'Undefined'
+        || !_is(operand, 'Undefined')
       );
 
     var maintainDataType = (
-        (overrideUndefined && _is(operand) == 'Undefined')
+        (overrideUndefined && _is(operand, 'Undefined'))
         || (!scope.options.maintainDataType
-        || _is(operand) == _is(args)
-        || _is(operand) == 'Function')
+        || _is(operand) === _is(args)
+        || _is(operand, 'Function'))
       );
 
     return (overrideUndefined && maintainDataType);
@@ -464,7 +463,7 @@
     {
       // Following pair wise format is awaited:
       // [ operand:*, args:Array, operand:*, args:Array, ... ]
-      if (arg.length % 2 == 0)
+      if (arg.length % 2 === 0)
       {
         for (index = 0, length = arg.length;
              index < length;
@@ -586,11 +585,11 @@
           break;
 
         default:
-          if (typeof subject[operand] == 'object')
+          if (_is(subject[operand], 'Object'))
           {
             // @TODO: Better way for determination?
             if (_is(subject[operand], 'Array')
-             && typeof subject[operand][args[0]] != 'undefined')
+             && !_is(subject[operand][args[0]], 'Undefined'))
             {
               _processValue(
                   scope,
@@ -659,9 +658,9 @@
     // Set up options
     for (var key in _defaultOptions)
     {
-      if (_defaultOptions[key] != options[key])
+      if (_defaultOptions[key] !== options[key])
       {
-        options[key] = (_is(options[key]) != 'Undefined')
+        options[key] = (!_is(options[key], 'Undefined'))
             ? options[key]
             : _defaultOptions[key];
       }
@@ -804,7 +803,7 @@
   try
   {
     // Browser
-    if (_is(window) != 'Undefined')
+    if (!_is(window, 'Undefined'))
     {
       window.cascade = cascade;
     }
@@ -814,7 +813,7 @@
   try
   {
     // Node?
-    if (_is(exports) != 'Undefined')
+    if (!_is(exports, 'Undefined'))
     {
       exports.cascade = cascade;
     }
