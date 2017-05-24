@@ -1,8 +1,8 @@
 {
   "name": "cascade.js",
-  "version": "0.6.6",
+  "version": "1.0.0",
   "authors": [
-    "Oliver Kühn <@0x04>"
+    "Oliver Kühn <ok@0x04>"
   ],
   "main": "src/cascade.js",
   "keywords": [
