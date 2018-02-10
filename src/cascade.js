@@ -697,7 +697,7 @@
     function cascadeChain(args)
     {
       currentChain = (/* @return {Function} */ function(args) {
-        // This inner wrap is done for the `.times` method
+        // This inner wrap is done for the `.repeat` method
         return function()
         {
           var result = _process(scope, args);
@@ -754,7 +754,7 @@
      * @param times
      * @returns {cascadeChain}
      */
-    cascadeChain.times = function(times)
+    cascadeChain.repeat = function(times)
     {
       for (var i = times; i > 0; i--)
       {
