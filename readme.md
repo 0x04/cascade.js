@@ -78,7 +78,7 @@ cascade(ul)
   // and release it from the cascade
   ('appendChild',
     cascade(document.createElement('li'))
-      ({ textContent: 'foobar {$index}' }))
+      ({ textContent: 'foobar ${index}' }))
       .release()
   // Repeat execution of previous chain 2 more times
   .repeat(2);
@@ -96,7 +96,7 @@ var address = getAddress();
 
 address.setStreet("Elm", "13a");
 address.city = "Carthage";
-address.state = "Eurasia"
+address.state = "Eurasia";
 address.zip(66666);
 ```
 
@@ -118,7 +118,7 @@ Below you'll find a number of examples. Your feedback is welcome.
 
 General usage:
 
-```javascript
+```
 // cascade.js call
 cascade(<target: *>, [ <options: Object> ])
   // cascade chain
@@ -137,7 +137,7 @@ var target = { property: 12345, method: function() { return 'foobar'; } };
 cascade(target, { overrideUndefined: true })
   ('property', 54321)
   ('method')
-  ('methodResult', '$result')
+  ('methodResult', '${result}')
   .release();
 // >> {property: 54321, method: function, methodResult: "foobar"}
 ```
@@ -171,30 +171,31 @@ cascade(target)
 // >> { d: { propertyA: 2, propertyB: 'foobar!' } a: ... }
 ```
 
-### Evaluation of variables
+### Replacement of variables in strings
+```javascript
+var target = { a: 'foobar', b: 'hello world' };
+cascade(target)
+  ('a', 'foobar #${index}')
+  ('b', 'hello #${index} world')
+  .release();
+
+// #0: target.a == 'foobar #0'
+// #1: target.b == 'hello #1 world'
+// >> { a: 'foobar #0', b: 'hello #1 world' }
+```
+
 ```javascript
 var target = { a: function(i) { console.log('i:', i); this.i = i; }, i: 0 };
 cascade(target)
-  ('a', '$index')
-  ('a', '$index')
-  ('a', '$index')
+  ('a', '${index}')
+  ('a', '${index}')
+  ('a', '${index}')
   .release();
 
 // #0: 'i: 0'
 // #1: 'i: 1'
 // #2: 'i: 2'
 // >> { a: ..., i: 2 }
-```
-
-### Replacement of variables in strings
-```javascript
-var target = { a: 'foobar', b: 'hello world' };
-cascade(target)
-  ('a', 'foobar #{$index}')
-  ('b', 'hello #{$index} world');
-
-// #0: target.a == 'foobar #0'
-// #1: target.b == 'hello #1 world'
 ```
 
 ### Repeat the execution of the current chain several times

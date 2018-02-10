@@ -37,15 +37,8 @@
     maintainDataType: true,
 
     /**
-     * Evaluate strings
-     * e.g. "$index"
-     * @type {Boolean}
-     */
-    evaluateVariables: true,
-
-    /**
      * Replace variables in strings
-     * e.g. "index no #{$index}"
+     * e.g. "index no ${index}"
      * @type {Boolean}
      */
     replaceVariables: true,
@@ -55,14 +48,7 @@
      * Warning: Can hard hit the performance!
      * @type {Boolean}
      */
-    storeResults: true,
-
-    /**
-     * Evaluate/convert variables string into their corresponding object.
-     * e.g. "$index" => 0
-     * @type {Boolean}
-     */
-    evaluateArguments: true
+    storeResults: true
   };
 
   /**
@@ -75,13 +61,7 @@
    * @const
    * @type {RegExp}
    */
-  var IS_VAR_STRING = /^\$[$\w]*$/i;
-
-  /**
-   * @const
-   * @type {RegExp}
-   */
-  var IS_VAR_REPLACEMENT = /\{\$[$\w]*\}/i;
+  var VAR_EXPRESSION = /\${([$\w]+)}/gi;
 
   /**
    * @private
@@ -293,34 +273,16 @@
    */
   function _evaluateString(scope, value)
   {
-    if (!_is(value, 'String'))
-    {
-      return value;
-    }
-
     var result = value;
 
-    // Evaluate variables
-    if (scope.options.evaluateVariables
-     && IS_VAR_STRING.test(value)
-     && value in scope.variables)
-    {
-      result = scope.variables[value];
-    }
-
     // Replace variables
-    if (scope.options.replaceVariables
-     && IS_VAR_REPLACEMENT.test(value))
+    if (scope.options.replaceVariables && VAR_EXPRESSION.test(value))
     {
-      for (var variable in scope.variables)
-      {
-        var regexp = new RegExp('{' + _escapeRegExp(variable) + '}', 'g');
-
-        if (regexp.test(result))
-        {
-          result = result.replace(regexp, String(scope.variables[variable]));
+      result.replace(VAR_EXPRESSION, function(str, variable) {
+        if (scope.variables.hasOwnProperty(variable)) {
+          result = result.replace(str, scope.variables[variable]);
         }
-      }
+      });
     }
 
     return result;
@@ -549,7 +511,7 @@
         operand = path.slice(-1).pop();
       }
 
-      // Evaluate/replace variables
+      // Replace variables
       if (_is(operand, 'String'))
       {
         operand = _evaluateString(scope, operand);
@@ -626,8 +588,8 @@
 
       if (scope.options.storeResults)
       {
-        scope.variables.$result = result;
-        scope.variables.$results.push(result);
+        scope.variables.result = result;
+        scope.variables.results.push(result);
       }
     }
   }
@@ -674,9 +636,9 @@
       subject   : subject,
       options   : options,
       variables : {
-        $index    : 0,
-        $results  : [],
-        $result   : undefined
+        index    : 0,
+        results  : [],
+        result   : undefined
       }
     };
     // Self reference
@@ -701,7 +663,7 @@
         return function()
         {
           var result = _process(scope, args);
-          scope.variables.$index++;
+          scope.variables.index++;
           return result;
         };
         // Convert arguments into an array
