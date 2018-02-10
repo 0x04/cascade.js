@@ -145,60 +145,6 @@ describe('`_is`', function()
   });
 });
 
-describe('`_isEmpty`', function()
-{
-  var _isEmpty = cascade.__TEST__._isEmpty;
-
-  it('Array []', function()
-  {
-    expect(_isEmpty([])).toBe(true);
-  });
-  it('Array [ 1, 2, 3 ]', function()
-  {
-    expect(_isEmpty([ 1, 2, 3 ])).toBe(false);
-  });
-  it('Object {}', function()
-  {
-    expect(_isEmpty({})).toBe(true);
-  });
-  it('Object { a: 1, b: 2, c: 3 }', function()
-  {
-    expect(_isEmpty({ a: 1, b: 2, c: 3 })).toBe(false);
-  });
-  it('String ""', function()
-  {
-    expect(_isEmpty("")).toBe(true);
-  });
-  it('String "foobar"', function()
-  {
-    expect(_isEmpty("foobar")).toBe(false);
-  });
-  it('Number 0', function()
-  {
-    expect(_isEmpty(0)).toBe(true);
-  });
-  it('Number 1', function()
-  {
-    expect(_isEmpty(1)).toBe(false);
-  });
-  it('undefined', function()
-  {
-    expect(_isEmpty(undefined)).toBe(true);
-  });
-  it('null', function()
-  {
-    expect(_isEmpty(null)).toBe(true);
-  });
-  it('Date', function()
-  {
-    expect(_isEmpty(new Date())).toBe(false);
-  });
-  it('document', function()
-  {
-    expect(_isEmpty(document)).toBe(false);
-  });
-});
-
 describe('`_resolve`', function()
 {
   var _resolve = cascade.__TEST__._resolve;
@@ -294,10 +240,10 @@ describe('evaluation of values', function()
   var scope = {
     options: defaultOptions,
     variables: {
-      $index: 0,
-      $options: defaultOptions,
-      $results: [],
-      $result: null
+      index: 0,
+      options: defaultOptions,
+      results: [],
+      result: null
     }
   };
   scope.variables.$scope = scope;
@@ -305,61 +251,61 @@ describe('evaluation of values', function()
   var _evaluateString = cascade.__TEST__._evaluateString;
   var _evaluateObject = cascade.__TEST__._evaluateObject;
   var _evaluateObjectValues = cascade.__TEST__._evaluateObjectValues;
-  var $vars = scope.variables;
+  var vars = scope.variables;
 
   it("`_evaluateString` argument replacement", function()
   {
-    expect(_evaluateString(scope, '$index')).toBe($vars.$index);
-    expect(_evaluateString(scope, '$options')).toBe($vars.$options);
-    expect(_evaluateString(scope, '$results')).toBe($vars.$results);
-    expect(_evaluateString(scope, '$result')).toBe(null);
+    expect(_evaluateString(scope, '${index}')).toBe(vars.index);
+    expect(_evaluateString(scope, '${options}')).toBe(vars.options);
+    expect(_evaluateString(scope, '${results}')).toBe(vars.results);
+    expect(_evaluateString(scope, '${result}')).toBe(null);
   });
 
   it("`_evaluateString` string replacement", function()
   {
-    expect(_evaluateString(scope, 'index:{$index}')).toBe('index:0');
-    expect(_evaluateString(scope, 'options:{$options}')).toBe('options:[object Object]');
-    expect(_evaluateString(scope, 'results:{$results}')).toBe('results:');
-    expect(_evaluateString(scope, 'result:{$result}')).toBe('result:null');
+    expect(_evaluateString(scope, 'index:${index}')).toBe('index:0');
+    expect(_evaluateString(scope, 'options:${options}')).toBe('options:[object Object]');
+    expect(_evaluateString(scope, 'results:${results}')).toBe('results:');
+    expect(_evaluateString(scope, 'result:${result}')).toBe('result:null');
   });
 
   // Test objects
   var objectA = {
     object : {
-      index   : $vars.$index,
+      index   : vars.index,
       options : defaultOptions,
-      results : $vars.$results,
-      result  : $vars.$result
+      results : vars.results,
+      result  : vars.result
     },
     array : [
-        $vars.$index,
+        vars.index,
         defaultOptions,
-        $vars.$results,
-        $vars.$result
+        vars.results,
+        vars.result
     ],
-    index   : $vars.$index,
+    index   : vars.index,
     options : defaultOptions,
-    results : $vars.$results,
-    result  : $vars.$result
+    results : vars.results,
+    result  : vars.result
   };
 
   var objectB = {
     object : {
-        index   : '$index',
-        options : '$options',
-        results : '$results',
-        result  : '$result'
+        index   : '${index}',
+        options : '${options}',
+        results : '${results}',
+        result  : '${result}'
     },
     array : [
-        '$index',
-        '$options',
-        '$results',
-        '$result'
+        '${index}',
+        '${options}',
+        '${results}',
+        '${result}'
     ],
-    index   : '$index',
-    options : '$options',
-    results : '$results',
-    result  : '$result'
+    index   : '${index}',
+    options : '${options}',
+    results : '${results}',
+    result  : '${result}'
   };
 
   it("`_evaluateObject` array argument replacement", function()
@@ -496,7 +442,7 @@ describe("`cascade` with multiple value object", function()
   __compareResults(objectA, objectB);
 });
 
-describe("`cascade` with value evaluation: $index", function()
+describe("`cascade` with value evaluation: ${index}", function()
 {
   var objectA = {};
   var objectB = {};
@@ -513,16 +459,16 @@ describe("`cascade` with value evaluation: $index", function()
   objectA.index9 = 9;
 
   cascade(objectB, { overrideUndefined: true })
-    ('index0', '$index')
-    ('index1', '$index')
-    ('index2', '$index')
-    ('index3', '$index')
-    ('index4', '$index')
-    ('index5', '$index')
-    ('index6', '$index')
-    ('index7', '$index')
-    ('index8', '$index')
-    ('index9', '$index');
+    ('index0', '${index}')
+    ('index1', '${index}')
+    ('index2', '${index}')
+    ('index3', '${index}')
+    ('index4', '${index}')
+    ('index5', '${index}')
+    ('index6', '${index}')
+    ('index7', '${index}')
+    ('index8', '${index}')
+    ('index9', '${index}');
 
   for (var n in objectA)
   {
@@ -572,15 +518,15 @@ describe("`cascade` with value evaluation: $result", function()
       ('testFn')
       ('testFn')
       ('testFn')
-      (function($results)
+      (function(results)
       {
         // As we add a result to through this call we have to return the latest
         // result manually. `this` is pointing to `objectB`
 
-        resultB = $results;
+        resultB = results;
         return this.testFn();
 
-      }, '$results');
+      }, '${results}');
 
   it('compare resultA with resultB', function()
   {

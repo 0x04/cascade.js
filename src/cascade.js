@@ -83,33 +83,6 @@
   //----------------------------------------------------------------------------
 
   /**
-   * Log helper function (using console.log).
-   * @private
-   * @param {string} methodName
-   * @param {... *} [args]
-   */
-  function _log(methodName, args)
-  {
-    if (!_isDebug)
-    {
-      return;
-    }
-
-    try
-    {
-      args = Array.prototype.slice.apply(arguments);
-
-      if (_is(methodName) === 'String')
-      {
-        args[0] = '[cascade.js/%s]'.replace('%s', methodName);
-      }
-
-      console.log.apply(console, args);
-    }
-    catch (e) { /* @eat. */ }
-  }
-
-  /**
    * Returns the internal class name of the given object.
    * @private
    * @param {*} value
@@ -127,38 +100,6 @@
     return (typeof compare === 'string')
         ? (compare.split(/[^$\w]/).indexOf(type) > -1)
         : type;
-  }
-
-  /**
-   * Proofs if `object` empty.
-   * @private
-   * @param {Object} object
-   * @return {Boolean}
-   */
-  function _isEmpty(object)
-  {
-    var result = true;
-
-    switch (_is(object))
-    {
-      case 'Object':
-        for (var key in object)
-        {
-          result = false;
-          break;
-        }
-        break;
-
-      case 'Array':
-        result = (object.length === 0);
-        break;
-
-      default:
-        result = (!object);
-        break;
-    }
-
-    return result;
   }
 
   /**
@@ -200,65 +141,6 @@
     return result;
   }
 
-  /**
-   * Referring to the table here:
-   * https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/regexp
-   * these characters should be escaped
-   * \ ^ $ * + ? . ( ) | { } [ ]
-   * These characters only have special meaning inside of brackets
-   * they do not need to be escaped, but they MAY be escaped
-   * without any adverse effects (to the best of my knowledge and casual testing)
-   * : ! , =
-   * my test "~!@#$%^&*(){}[]`/=?+\|-_;:'\",<.>".match(/[\#]/g)
-   *
-   * @see http://stackoverflow.com/questions/3446170/escape-string-for-use-in-javascript-regex
-   * @type {function}
-   */
-  var _escapeRegExp = (function () {
-
-    var specials = [
-      // order matters for these
-      "-", "[", "]",
-      // order doesn't matter for any of these
-      "/" , "{" , "}" , "(" , ")" , "*" , "+" , "?" , "." , "\\" , "^" , "$" , "|"
-    ];
-
-    // I choose to escape every character with '\'
-    // even though only some strictly require it when inside of []
-    var regex = new RegExp('[' + specials.join('\\') + ']', 'g');
-
-    return function (str) {
-      return str.replace(regex, "\\$&");
-    };
-
-  }());
-
-  /**
-   * Returns a array with some option-driven conditions. Its used to
-   * determine if changes to a field is allowed or not.
-   * @private
-   * @param scope
-   * @param operand
-   * @param args
-   * @returns {Boolean}
-   */
-  function _conditions(scope, operand, args)
-  {
-    var overrideUndefined = (
-      scope.options.overrideUndefined
-        || !_is(operand, 'Undefined')
-      );
-
-    var maintainDataType = (
-        (overrideUndefined && _is(operand, 'Undefined'))
-        || (!scope.options.maintainDataType
-        || _is(operand) === _is(args)
-        || _is(operand, 'Function'))
-      );
-
-    return (overrideUndefined && maintainDataType);
-  }
-
 
   //----------------------------------------------------------------------------
   // @part Evaluation
@@ -279,7 +161,12 @@
     if (scope.options.replaceVariables && VAR_EXPRESSION.test(value))
     {
       result.replace(VAR_EXPRESSION, function(str, variable) {
-        if (scope.variables.hasOwnProperty(variable)) {
+        // Use the specific variable directly, incl. data type
+        if (result === str) {
+          result = scope.variables[variable];
+        }
+        // Replace variable in the result string
+        else if (scope.variables.hasOwnProperty(variable)) {
           result = result.replace(str, scope.variables[variable]);
         }
       });
@@ -297,28 +184,20 @@
    */
   function _evaluateObject(scope, value)
   {
-    var index, length;
-
     switch (_is(value))
     {
       case 'Array':
-        for (index = 0, length = value.length;
-             index < length;
-             index++)
-        {
-          if (_is(value[index], 'Object|String'))
-          {
-            value[index] = _evaluateObjectValue(scope, value[index]);
-          }
-        }
+        value.forEach(function(subject, index) {
+          value[index] = _evaluateObjectValue(scope, subject);
+        });
         break;
 
       case 'Object':
-        for (index in value)
+        for (var name in value)
         {
-          if (_is(value[index], 'Object|String'))
+          if (value.hasOwnProperty(name))
           {
-            value[index] = _evaluateObjectValue(scope, value[index]);
+            value[name] = _evaluateObjectValue(scope, value[name]);
           }
         }
         break;
@@ -336,7 +215,7 @@
    */
   function _evaluateObjectValue(scope, value)
   {
-    var result;
+    var result = value;
 
     switch (_is(value))
     {
@@ -377,9 +256,11 @@
    */
   function _process(scope, args)
   {
-    processing: for (var index = 0, length = args.length;
-         index < length;
-         index++)
+    processing: for (
+      var index = 0, length = args.length;
+      index < length;
+      index++
+    )
     {
       var arg = args[index];
 
@@ -387,14 +268,10 @@
       switch (_is(arg))
       {
         case 'Array':
-          // Arrays
-          /*result = */
           _processArray(scope, arg);
           break;
 
         case 'Object':
-          // Plain object
-          /*result = */
           _processObject(scope, arg);
           break;
 
@@ -420,41 +297,32 @@
     var index, length, operand, args;
 
     // case #2
-    if (arg.length > 2 && _is(arg[1], 'Array'))
+    // Following pair wise format is awaited:
+    // [ operand:*, args:Array, operand:*, args:Array, ... ]
+    if (
+      arg.length > 2
+      && arg.length % 2 === 0
+      && _is(arg[1], 'Array')
+    )
     {
-      // Following pair wise format is awaited:
-      // [ operand:*, args:Array, operand:*, args:Array, ... ]
-      if (arg.length % 2 === 0)
+      for (index = 0, length = arg.length;
+           index < length;
+           index += 2)
       {
-        for (index = 0, length = arg.length;
-             index < length;
-             index += 2)
-        {
-          operand = arg[index];
-          args = (_is(arg[index + 1], 'Array'))
-              ? arg[index +1]
-              : [ arg[index +1] ];
+        operand = arg[index];
 
-          _processValue(scope, operand, args);
-        }
+        args = (_is(arg[index + 1], 'Array'))
+            ? arg[index + 1]
+            : [ arg[index + 1] ];
 
-        return;
+        _processValue(scope, operand, args);
       }
+
+      return;
     }
 
     // case #1
-    operand = arg[0];
-
-    args = [];
-
-    for (index = 1, length = arg.length;
-         index < length;
-         index++)
-    {
-      args = args.concat(arg[index]);
-    }
-
-    _processValue(scope, operand, args);
+    _processValue(scope, arg[0], arg.slice(1));
   }
 
   /**
@@ -499,28 +367,30 @@
         ? scope.subject
         : subject;
 
+    // Error handling
+    if (_is(operand, 'Undefined|Null|NaN'))
+    {
+      throw new Error('Operand was `%s`.'
+        .replace('%s', _is(operand))
+      );
+    }
+
     try
     {
-      // Resolve dot string of subject.
-      if (_is(operand, 'String')
-       && operand.indexOf('.') > -1
-       && IS_DOT_STRING.test(operand))
-      {
-        var path = operand.split('.');
-        subject =_resolve(subject, path.slice(0, -1));
-        operand = path.slice(-1).pop();
-      }
-
       // Replace variables
-      if (_is(operand, 'String'))
-      {
-        operand = _evaluateString(scope, operand);
-      }
+      args = _evaluateObject(scope, args);
 
-      // Evaluate arguments
-      if (scope.options.evaluateArguments)
-      {
-        _evaluateObject(scope, args);
+      if (_is(operand, 'String')) {
+        // Replace variables
+        operand = _evaluateString(scope, operand);
+
+        // Resolve dot string of subject.
+        if (operand.indexOf('.') > -1 && IS_DOT_STRING.test(operand))
+        {
+          var path = operand.split('.');
+          subject =_resolve(subject, path.slice(0, -1));
+          operand = path.slice(-1).pop();
+        }
       }
 
       // Operand is a function, just execute
@@ -530,43 +400,26 @@
         return;
       }
 
-      // Error handling
-      if (_is(operand, 'Undefined|Null|NaN'))
-      {
-        throw new Error('Operand was `%s`.'
-            .replace('%s', _is(operand))
-        );
-      }
-
       // Final handling
-      switch (_is(subject[operand]))
+      var operandTargetType = _is(subject[operand]);
+
+      switch (operandTargetType)
       {
         case 'Function':
           _processFunction(scope, subject[operand], subject, args);
           break;
 
-        default:
-          if (_is(subject[operand], 'Object'))
-          {
-            // @TODO: Better way for determination?
-            if (_is(subject[operand], 'Array')
-             && !_is(subject[operand][args[0]], 'Undefined'))
-            {
-              _processValue(
-                  scope,
-                  args[0],
-                  args.slice(1),
-                  subject[operand]
-              );
-            }
-            else if (_conditions(scope, subject[operand], args))
-            {
-              subject[operand] = args;
-            }
+        case 'Undefined':
+          if (scope.options.overrideUndefined) {
+            subject[operand] = args[0];
           }
-          // @TODO: How to handle multiple items?
-          else if (_conditions(scope, subject[operand], args[0]))
-          {
+          break;
+
+        default:
+          if (args.length > 1) {
+            _processValue(scope, args[0], args.slice(1), subject[operand]);
+          }
+          else if (!scope.options.maintainDataType || _is(args[0], operandTargetType)) {
             subject[operand] = args[0];
           }
           break;
@@ -582,15 +435,12 @@
 
   function _processFunction(scope, operand, subject, args)
   {
-    if (_conditions(scope, operand, args))
-    {
-      var result = operand.apply(subject, args);
+    var result = operand.apply(subject, args);
 
-      if (scope.options.storeResults)
-      {
-        scope.variables.result = result;
-        scope.variables.results.push(result);
-      }
+    if (scope.options.storeResults)
+    {
+      scope.variables.result = result;
+      scope.variables.results.push(result);
     }
   }
 
@@ -641,8 +491,6 @@
         result   : undefined
       }
     };
-    // Self reference
-    scope.variables.scope = scope;
 
     /**
      * @type {Function}
@@ -743,11 +591,8 @@
       // Properties
       _defaultOptions       : _defaultOptions,
       // Methods
-      _log                  : _log,
       _is                   : _is,
-      _isEmpty              : _isEmpty,
       _resolve              : _resolve,
-      _conditions           : _conditions,
       // Evaluation
       _evaluateString       : _evaluateString,
       _evaluateObject       : _evaluateObject,
@@ -756,8 +601,7 @@
       _process              : _process,
       _processArray         : _processArray,
       _processObject        : _processObject,
-      _processValue         : _processValue,
-      _processConditions    : _conditions
+      _processValue         : _processValue
     };
   }
 
